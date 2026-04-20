@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>NetSentinel · Analytics Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            --bg:        #080c18;
+            --bg-card:   #0d1526;
+            --border:    #1a2a42;
+            --accent:    #00ffae;
+            --red:       #ff3860;
+            --orange:    #ff6340;
+            --yellow:    #ffd166;
+            --blue:      #4e9fff;
+            --purple:    #a78bfa;
+            --text:      #c9d8eb;
+            --dim:       #506b85;
+        }
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.84rem;min-height:100vh}
+
+        /* ── Navbar ───────────────────────────────────────────── */
+        nav{
+            background:var(--bg-card);
+            border-bottom:1px solid var(--border);
+            padding:.7rem 1.6rem;
+            display:flex;align-items:center;gap:.7rem;
+            position:sticky;top:0;z-index:200;
+        }
+        .logo{font-size:1.05rem;font-weight:700;color:var(--accent);letter-spacing:2px;text-transform:uppercase}
+        .logo span{color:#fff}
+        .live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse 1.4s ease-in-out infinite}
+        @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,255,174,.5)}70%{box-shadow:0 0 0 6px rgba(0,255,174,0)}}
+
+        .nav-right{margin-left:auto;display:flex;align-items:center;gap:1.4rem}
+        #clock{color:var(--dim);font-size:.74rem}
+
+        /* Countdown pill */
+        .countdown-pill{
+            display:flex;align-items:center;gap:.45rem;
+            background:rgba(0,255,174,.07);
+            border:1px solid rgba(0,255,174,.2);
+            border-radius:20px;padding:3px 10px;
+            font-size:.7rem;color:var(--accent);
+        }
+        .countdown-ring{
+            width:14px;height:14px;flex-shrink:0;
+            border-radius:50%;
+            background:conic-gradient(var(--accent) var(--pct,100%), rgba(0,255,174,.12) 0);
+            transition:--pct .9s linear;
+        }
+
+        /* ── Layout ───────────────────────────────────────────── */
+        .wrap{padding:1.4rem 1.8rem;max-width:1500px;margin:0 auto}
+        .section-title{color:var(--dim);font-size:.74rem;margin-bottom:1.1rem}
+        .section-title span{color:var(--accent)}
+
+        /* ── Stat Cards ───────────────────────────────────────── */
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:.85rem;margin-bottom:1.3rem}
+        .stat{
+            background:var(--bg-card);border:1px solid var(--border);
+            border-radius:10px;padding:1rem 1.25rem;
+            position:relative;overflow:hidden;
+            transition:border-color .2s,box-shadow .2s;
+        }
+        .stat:hover{border-color:var(--c,var(--accent));box-shadow:0 0 18px rgba(0,255,174,.06)}
+        .stat::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--c,var(--accent))}
+        .stat .lbl{font-size:.63rem;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:.3rem}
+        .stat .val{font-size:1.9rem;font-weight:700;color:var(--c,var(--accent));line-height:1}
+        .stat .ico{position:absolute;right:.9rem;top:50%;transform:translateY(-50%);font-size:2.3rem;opacity:.07}
+
+        /* ── Panel ────────────────────────────────────────────── */
+        .panel{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+        .ph{padding:.8rem 1.2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.55rem}
+        .ph h2{font-size:.86rem;font-weight:600;color:#fff;letter-spacing:.3px}
+        .pb{padding:1rem}
+
+        /* ── Charts grid ──────────────────────────────────────── */
+        .charts-row{display:grid;grid-template-columns:280px 1fr 280px;gap:.85rem;margin-bottom:1.2rem}
+        @media(max-width:1024px){.charts-row{grid-template-columns:1fr 1fr}}
+        @media(max-width:680px){.charts-row{grid-template-columns:1fr}}
+        .chart-wrap{position:relative;height:240px;display:flex;align-items:center;justify-content:center}
+
+        /* ── Bottom grid ──────────────────────────────────────── */
+        .bottom-row{display:grid;grid-template-columns:1fr 2fr;gap:.85rem}
+        @media(max-width:980px){.bottom-row{grid-template-columns:1fr}}
+
+        /* ── Table ────────────────────────────────────────────── */
+        .tbl-wrap{overflow-x:auto}
+        table{width:100%;border-collapse:collapse}
+        thead tr{background:#0a1020}
+        thead th{
+            padding:.6rem 1rem;font-size:.63rem;text-transform:uppercase;
+            letter-spacing:1px;color:var(--dim);border-bottom:1px solid var(--border);white-space:nowrap;
+        }
+        tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+        tbody tr:last-child{border-bottom:none}
+        tbody tr:hover{background:rgba(0,255,174,.04)}
+        tbody td{padding:.6rem 1rem;vertical-align:middle}
+        .td-id{color:var(--dim);font-size:.73rem}
+        .td-ip{color:var(--blue);font-size:.79rem}
+        .td-rule{color:#fff;font-size:.78rem}
+        .td-ts{color:var(--dim);font-size:.71rem;white-space:nowrap}
+
+        /* ── Badges ───────────────────────────────────────────── */
+        .bsev,.bst{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.67rem;font-weight:700;border:1px solid}
+        .sev-CRITICAL{background:rgba(255,56,96,.16);color:var(--red);border-color:var(--red)}
+        .sev-HIGH{background:rgba(255,99,64,.14);color:var(--orange);border-color:var(--orange)}
+        .sev-MEDIUM{background:rgba(255,209,102,.14);color:var(--yellow);border-color:var(--yellow)}
+        .sev-LOW{background:rgba(0,255,174,.12);color:var(--accent);border-color:var(--accent)}
+        .st-NEW{background:rgba(78,159,255,.14);color:var(--blue);border-color:var(--blue)}
+        .st-INVESTIGATING{background:rgba(255,209,102,.12);color:var(--yellow);border-color:var(--yellow)}
+        .st-RESOLVED{background:rgba(0,255,174,.1);color:var(--accent);border-color:var(--accent)}
+
+        /* ── Top IPs ──────────────────────────────────────────── */
+        .ip-row{display:flex;align-items:center;gap:.7rem;padding:.55rem .8rem;border-bottom:1px solid var(--border);transition:background .15s}
+        .ip-row:last-child{border-bottom:none}
+        .ip-row:hover{background:rgba(0,255,174,.04)}
+        .ip-rank{font-size:.68rem;color:var(--dim);width:1.4rem;text-align:center;flex-shrink:0}
+        .ip-addr{flex:1;color:var(--blue);font-size:.79rem}
+        .ip-bar-wrap{width:90px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;flex-shrink:0}
+        .ip-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .5s}
+        .ip-cnt{font-size:.71rem;color:var(--accent);width:38px;text-align:right;flex-shrink:0}
+
+        /* ── Rules legend ─────────────────────────────────────── */
+        .rules-list{display:flex;flex-direction:column;gap:.5rem;padding:.5rem}
+        .rule-item{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid var(--border)}
+        .rule-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+        .rule-name{font-size:.79rem;color:#fff;flex:1}
+        .rule-desc{font-size:.68rem;color:var(--dim)}
+        .rule-badge{font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid;flex-shrink:0}
+
+        /* ── Empty state ──────────────────────────────────────── */
+        .empty{text-align:center;padding:2.5rem 1rem;color:var(--dim)}
+        .empty i{font-size:2.2rem;opacity:.25;display:block;margin-bottom:.7rem}
+
+        /* ── Footer ───────────────────────────────────────────── */
+        footer{text-align:center;padding:1.4rem;margin-top:1rem;color:var(--dim);font-size:.68rem;border-top:1px solid var(--border)}
+        footer a{color:var(--accent);text-decoration:none}
+
+        /* ── Timestamp update flash ───────────────────────────── */
+        .flash{animation:flash .4s ease}
+        @keyframes flash{0%,100%{opacity:1}50%{opacity:.4}}
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav>
+    <i class="bi bi-shield-shaded" style="color:var(--accent);font-size:1.2rem"></i>
+    <div class="logo">Net<span>Sentinel</span></div>
+    <div class="live-dot"></div>
+
+    <div class="nav-right">
+        <!-- Countdown pill (sustituye al botón de refrescar) -->
+        <div class="countdown-pill" id="countdownPill">
+            <div class="countdown-ring" id="countdownRing"></div>
+            <span id="countdownLabel">5s</span>
+        </div>
+        <span id="clock">--:--:--</span>
+    </div>
+</nav>
+
+<div class="wrap">
+
+    <p class="section-title">
+        <i class="bi bi-terminal"></i>&nbsp; Security Event Dashboard
+        &nbsp;·&nbsp; <span>Motor de Reglas + Analytics Activos</span>
+    </p>
+
+    <!-- ── Stat Cards ── -->
+    <div class="stats-grid">
+        <div class="stat" style="--c:var(--blue)">
+            <div class="lbl">Logs Ingestados</div>
+            <div class="val" id="st-logs" th:text="${totalLogs}">0</div>
+            <i class="bi bi-database ico"></i>
+        </div>
+        <div class="stat" style="--c:var(--accent)">
+            <div class="lbl">Total Alertas</div>
+            <div class="val" id="st-alerts" th:text="${totalAlerts}">0</div>
+            <i class="bi bi-bell ico"></i>
+        </div>
+        <div class="stat" style="--c:var(--yellow)">
+            <div class="lbl">Alertas Nuevas</div>
+            <div class="val" id="st-new" th:text="${newAlerts}">0</div>
+            <i class="bi bi-exclamation-triangle ico"></i>
+        </div>
+        <div class="stat" style="--c:var(--red)">
+            <div class="lbl">Alta / Crítica</div>
+            <div class="val" id="st-crit" th:text="${criticalAlerts}">0</div>
+            <i class="bi bi-virus ico"></i>
+        </div>
+        <div class="stat" style="--c:var(--purple)">
+            <div class="lbl">IPs Detectadas</div>
+            <div class="val" id="st-ips">—</div>
+            <i class="bi bi-globe ico"></i>
+        </div>
+    </div>
+
+    <!-- ── Charts Row ── -->
+    <div class="charts-row">
+
+        <!-- Doughnut: Severity of LogEvents -->
+        <div class="panel">
+            <div class="ph">
+                <i class="bi bi-pie-chart-fill" style="color:var(--accent)"></i>
+                <h2>Severidad de Eventos</h2>
+            </div>
+            <div class="pb"><div class="chart-wrap"><canvas id="sevChart"></canvas></div></div>
+        </div>
+
+        <!-- Line: Hourly Volume -->
+        <div class="panel">
+            <div class="ph">
+                <i class="bi bi-graph-up-arrow" style="color:var(--blue)"></i>
+                <h2>Volumen de Logs — Últimas 24h</h2>
+            </div>
+            <div class="pb"><div class="chart-wrap"><canvas id="hourChart"></canvas></div></div>
+        </div>
+
+        <!-- Pie: Alert Type Distribution -->
+        <div class="panel">
+            <div class="ph">
+                <i class="bi bi-exclamation-octagon-fill" style="color:var(--red)"></i>
+                <h2>Tipo de Alertas</h2>
+            </div>
+            <div class="pb"><div class="chart-wrap"><canvas id="alertTypeChart"></canvas></div></div>
+        </div>
+
+    </div>
+
+    <!-- ── Bottom Row ── -->
+    <div class="bottom-row">
+
+        <!-- Left: Top IPs + Rules reference -->
+        <div style="display:flex;flex-direction:column;gap:.85rem">
+
+            <div class="panel">
+                <div class="ph">
+                    <i class="bi bi-fire" style="color:var(--orange)"></i>
+                    <h2>Top 5 IPs por Volumen</h2>
+                </div>
+                <div id="topIpsBody" style="padding:.3rem 0"></div>
+            </div>
+
+            <div class="panel">
+                <div class="ph">
+                    <i class="bi bi-cpu" style="color:var(--purple)"></i>
+                    <h2>Reglas Activas</h2>
+                </div>
+                <div class="rules-list">
+                    <div class="rule-item">
+                        <div class="rule-dot" style="background:var(--orange)"></div>
+                        <div>
+                            <div class="rule-name">Brute Force</div>
+                            <div class="rule-desc">≥ 5 LOGIN_FAILED / 1 min</div>
+                        </div>
+                        <span class="rule-badge" style="color:var(--orange);border-color:var(--orange)">HIGH</span>
+                    </div>
+                    <div class="rule-item">
+                        <div class="rule-dot" style="background:var(--red)"></div>
+                        <div>
+                            <div class="rule-name">SQL Injection</div>
+                            <div class="rule-desc">SELECT/DROP/UNION en payload</div>
+                        </div>
+                        <span class="rule-badge" style="color:var(--red);border-color:var(--red)">CRITICAL</span>
+                    </div>
+                    <div class="rule-item">
+                        <div class="rule-dot" style="background:var(--red)"></div>
+                        <div>
+                            <div class="rule-name">DoS Detection</div>
+                            <div class="rule-desc">> 20 eventos / 30 segundos</div>
+                        </div>
+                        <span class="rule-badge" style="color:var(--red);border-color:var(--red)">CRITICAL</span>
+                    </div>
+                    <div class="rule-item">
+                        <div class="rule-dot" style="background:var(--yellow)"></div>
+                        <div>
+                            <div class="rule-name">Endpoint Scanning</div>
+                            <div class="rule-desc">≥ 8 peticiones 404 / 1 min</div>
+                        </div>
+                        <span class="rule-badge" style="color:var(--yellow);border-color:var(--yellow)">MEDIUM</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right: Alerts Table -->
+        <div class="panel">
+            <div class="ph">
+                <div class="live-dot"></div>
+                <h2>Alertas Detectadas</h2>
+                <span style="margin-left:auto;font-size:.67rem;color:var(--dim)" id="lastUpdate">—</span>
+            </div>
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th><i class="bi bi-tag"></i> Regla</th>
+                            <th><i class="bi bi-globe"></i> IP Origen</th>
+                            <th><i class="bi bi-shield-exclamation"></i> Severidad</th>
+                            <th><i class="bi bi-circle-fill"></i> Estado</th>
+                            <th><i class="bi bi-calendar-event"></i> Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsBody">
+                        <th:block th:if="${#lists.isEmpty(alerts)}">
+                            <tr><td colspan="6">
+                                <div class="empty">
+                                    <i class="bi bi-shield-check"></i>
+                                    <p>Sin alertas. Ingesta logs para activar el motor.</p>
+                                </div>
+                            </td></tr>
+                        </th:block>
+                        <tr th:each="a : ${alerts}" th:if="${!#lists.isEmpty(alerts)}">
+                            <td class="td-id"  th:text="${a.id}">1</td>
+                            <td class="td-rule" th:text="${a.ruleName}">RULE</td>
+                            <td class="td-ip"   th:text="${a.sourceIp}">0.0.0.0</td>
+                            <td><span class="bsev" th:classappend="'sev-'+${a.severity.name()}" th:text="${a.severity}">HIGH</span></td>
+                            <td><span class="bst"  th:classappend="'st-'+${a.status.name()}"   th:text="${a.status}">NEW</span></td>
+                            <td class="td-ts" th:text="${#temporals.format(a.timestamp,'yyyy-MM-dd HH:mm:ss')}">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /bottom-row -->
+
+    <footer>
+        NetSentinel SIEM &nbsp;·&nbsp; v1.0.0
+        &nbsp;&nbsp;
+        <a href="/swagger-ui.html"><i class="bi bi-box-arrow-up-right"></i> Swagger UI</a>
+        &nbsp;|&nbsp;
+        <a href="/h2-console" style="color:var(--blue)"><i class="bi bi-database"></i> H2 Console</a>
+    </footer>
+
+</div>
+
+<script>
+/* ══ CONFIG ═══════════════════════════════════════════════ */
+const POLL_MS       = 5000;   // alertas
+const CHART_POLL_MS = 30000;  // gráficos
+
+/* ══ CLOCK ════════════════════════════════════════════════ */
+setInterval(()=>{
+    document.getElementById('clock').textContent =
+        new Date().toLocaleTimeString('en-GB',{hour12:false});
+},1000);
+
+/* ══ COUNTDOWN RING ═══════════════════════════════════════
+   CSS custom property --pct controla el conic-gradient.
+   Workaround: usamos clip-path via canvas directo en lugar
+   de la propiedad CSS animada (más compatible).
+   Usamos un canvas 2D pequeño.
+══════════════════════════════════════════════════════════ */
+(function () {
+    const TOTAL  = POLL_MS / 1000; // 5
+    const pill   = document.getElementById('countdownPill');
+    const label  = document.getElementById('countdownLabel');
+    const ring   = document.getElementById('countdownRing');
+    let remaining = TOTAL;
+    let frame;
+
+    function drawRing(pct) {
+        // conic-gradient via inline style
+        const deg = Math.round(pct * 360);
+        ring.style.background =
+            `conic-gradient(#00ffae ${deg}deg, rgba(0,255,174,.1) ${deg}deg)`;
+    }
+
+    function tick() {
+        remaining -= 0.05;
+        if (remaining <= 0) remaining = TOTAL;
+        const pct = remaining / TOTAL;
+        drawRing(pct);
+        label.textContent = Math.ceil(remaining) + 's';
+        frame = requestAnimationFrame(() => setTimeout(tick, 50));
+    }
+    tick();
+})();
+
+/* ══ BADGE HELPERS ════════════════════════════════════════ */
+const SEV_COLORS = {
+    CRITICAL:'#ff3860', HIGH:'#ff6340', MEDIUM:'#ffd166', LOW:'#00ffae'
+};
+const ALERT_TYPE_COLORS = {
+    'Brute Force':   '#ff6340',
+    'SQL Injection': '#ff3860',
+    'DoS Attack':    '#a78bfa',
+    'Endpoint Scan': '#ffd166',
+};
+function sevClass(s){ return 'bsev sev-'+s; }
+function stClass(s){  return 'bst st-'+s; }
+function fmtTs(ts){   return ts?ts.replace('T',' ').substring(0,19):'--'; }
+
+/* ══ ALERTS POLLING (5s) ══════════════════════════════════ */
+function pollAlerts(){
+    fetch('/api/alerts')
+        .then(r=>r.json())
+        .then(data=>{
+            renderAlerts(data);
+            updateStatCards(data);
+            const el = document.getElementById('lastUpdate');
+            el.textContent = 'Actualizado: '+new Date().toLocaleTimeString('en-GB',{hour12:false});
+            el.classList.add('flash');
+            setTimeout(()=>el.classList.remove('flash'),400);
+        })
+        .catch(e=>console.warn('[poll]',e));
+}
+
+function renderAlerts(list){
+    const tbody = document.getElementById('alertsBody');
+    if(!list.length){
+        tbody.innerHTML='<tr><td colspan="6"><div class="empty"><i class="bi bi-shield-check"></i><p>Sin alertas activas.</p></div></td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(a=>`
+        <tr>
+            <td class="td-id">${a.id}</td>
+            <td class="td-rule">${a.ruleName}</td>
+            <td class="td-ip">${a.sourceIp||'-'}</td>
+            <td><span class="${sevClass(a.severity)}">${a.severity}</span></td>
+            <td><span class="${stClass(a.status)}">${a.status}</span></td>
+            <td class="td-ts">${fmtTs(a.timestamp)}</td>
+        </tr>`).join('');
+}
+
+function updateStatCards(list){
+    document.getElementById('st-alerts').textContent = list.length;
+    document.getElementById('st-new').textContent    = list.filter(a=>a.status==='NEW').length;
+    document.getElementById('st-crit').textContent   = list.filter(a=>a.severity==='HIGH'||a.severity==='CRITICAL').length;
+}
+
+/* ══ CHART.JS DEFAULTS ════════════════════════════════════ */
+Chart.defaults.color       = '#506b85';
+Chart.defaults.borderColor = '#1a2a42';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+Chart.defaults.font.size   = 11;
+
+/* ── Severity Doughnut ─── */
+const sevChart = new Chart(document.getElementById('sevChart'),{
+    type:'doughnut',
+    data:{labels:[],datasets:[{data:[],backgroundColor:[],borderWidth:2,borderColor:'#0d1526'}]},
+    options:{
+        responsive:true,maintainAspectRatio:false,cutout:'65%',
+        plugins:{
+            legend:{position:'bottom',labels:{padding:12,boxWidth:11,color:'#c9d8eb'}},
+            tooltip:{callbacks:{label:c=>` ${c.label}: ${c.parsed} eventos`}}
+        },
+        animation:{duration:600}
+    }
+});
+
+/* ── Hourly Line ─── */
+const hourChart = new Chart(document.getElementById('hourChart'),{
+    type:'line',
+    data:{labels:[],datasets:[{
+        label:'Eventos',data:[],
+        borderColor:'#4e9fff',backgroundColor:'rgba(78,159,255,.12)',
+        borderWidth:2,pointRadius:3,pointBackgroundColor:'#4e9fff',tension:.4,fill:true
+    }]},
+    options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y} eventos`}}},
+        scales:{
+            x:{grid:{color:'#1a2a42'},ticks:{color:'#506b85',maxTicksLimit:12}},
+            y:{grid:{color:'#1a2a42'},ticks:{color:'#506b85',precision:0},beginAtZero:true}
+        },
+        animation:{duration:600}
+    }
+});
+
+/* ── Alert Type Pie ─── */
+const alertTypeChart = new Chart(document.getElementById('alertTypeChart'),{
+    type:'doughnut',
+    data:{labels:[],datasets:[{data:[],backgroundColor:[],borderWidth:2,borderColor:'#0d1526'}]},
+    options:{
+        responsive:true,maintainAspectRatio:false,cutout:'60%',
+        plugins:{
+            legend:{position:'bottom',labels:{padding:12,boxWidth:11,color:'#c9d8eb'}},
+            tooltip:{callbacks:{label:c=>` ${c.label}: ${c.parsed} alertas`}}
+        },
+        animation:{duration:600}
+    }
+});
+
+/* ══ CHARTS REFRESH (30s) ════════════════════════════════ */
+function refreshCharts(){
+    // Severity distribution
+    fetch('/api/analytics/severity-distribution')
+        .then(r=>r.json())
+        .then(data=>{
+            sevChart.data.labels                   = data.map(d=>d.severity);
+            sevChart.data.datasets[0].data         = data.map(d=>d.count);
+            sevChart.data.datasets[0].backgroundColor = data.map(d=>SEV_COLORS[d.severity]||'#4e9fff');
+            sevChart.update();
+        }).catch(e=>console.warn('[chart-sev]',e));
+
+    // Hourly volume
+    fetch('/api/analytics/hourly-volume')
+        .then(r=>r.json())
+        .then(data=>{
+            hourChart.data.labels           = data.map(d=>d.hour+':00');
+            hourChart.data.datasets[0].data = data.map(d=>d.count);
+            hourChart.update();
+        }).catch(e=>console.warn('[chart-hour]',e));
+
+    // Alert type distribution
+    fetch('/api/analytics/alert-type-distribution')
+        .then(r=>r.json())
+        .then(data=>{
+            alertTypeChart.data.labels                      = data.map(d=>d.severity);
+            alertTypeChart.data.datasets[0].data            = data.map(d=>d.count);
+            alertTypeChart.data.datasets[0].backgroundColor = data.map(d=>ALERT_TYPE_COLORS[d.severity]||'#4e9fff');
+            alertTypeChart.update();
+        }).catch(e=>console.warn('[chart-type]',e));
+
+    // Top IPs
+    fetch('/api/analytics/top-ips')
+        .then(r=>r.json())
+        .then(data=>{
+            const max  = data.length ? data[0].count : 1;
+            document.getElementById('st-ips').textContent = data.length;
+            document.getElementById('topIpsBody').innerHTML = !data.length
+                ? '<div class="empty" style="padding:1.5rem"><i class="bi bi-globe"></i><p>Sin datos</p></div>'
+                : data.map((d,i)=>`
+                    <div class="ip-row">
+                        <span class="ip-rank">#${i+1}</span>
+                        <span class="ip-addr">${d.sourceIp}</span>
+                        <div class="ip-bar-wrap"><div class="ip-bar" style="width:${Math.round(d.count/max*100)}%"></div></div>
+                        <span class="ip-cnt">${d.count}</span>
+                    </div>`).join('');
+        }).catch(e=>console.warn('[chart-ips]',e));
+}
+
+/* ══ BOOT ════════════════════════════════════════════════ */
+pollAlerts();
+refreshCharts();
+setInterval(pollAlerts,   POLL_MS);
+setInterval(refreshCharts, CHART_POLL_MS);
+</script>
+</body>
+</html>
