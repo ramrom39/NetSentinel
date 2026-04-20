@@ -34,3 +34,13 @@ app:
 logging:
   level:
     com.netsentinel: DEBUG
+
+# Swagger UI: http://localhost:8080/swagger-ui.html
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true   # Habilita el botón "Try it out" en todos los endpoints
+  api-docs:
+    path: /v3/api-docs

@@ -14,6 +14,7 @@ C:\Users\gaveu\Desktop\NetSentinel SIEM\src\main\java\com\netsentinel\models\Sev
 C:\Users\gaveu\Desktop\NetSentinel SIEM\src\main\java\com\netsentinel\models\AlertStatus.java
 C:\Users\gaveu\Desktop\NetSentinel SIEM\src\main\java\com\netsentinel\dto\LogIngestionRequest.java
 C:\Users\gaveu\Desktop\NetSentinel SIEM\src\main\java\com\netsentinel\security\CustomUserDetails.java
+C:\Users\gaveu\Desktop\NetSentinel SIEM\src\main\java\com\netsentinel\config\OpenApiConfig.java
 C:\Users\gaveu\Desktop\NetSentinel SIEM\src\main\java\com\netsentinel\repositories\AlertRepository.java
 C:\Users\gaveu\Desktop\NetSentinel SIEM\src\main\java\com\netsentinel\security\CustomUserDetailsService.java
 C:\Users\gaveu\Desktop\NetSentinel SIEM\src\main\java\com\netsentinel\models\User.java
