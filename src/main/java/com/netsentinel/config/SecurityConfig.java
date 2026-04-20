@@ -31,9 +31,12 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(AbstractHttpConfigurer::disable)
+                // Necesario para que la consola H2 (que usa iframes) funcione en el browser
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll() // Acceso libre a la consola H2
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
